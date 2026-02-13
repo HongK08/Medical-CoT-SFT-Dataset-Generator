@@ -71,9 +71,8 @@ LLM Dataset Project/
 │   ├── scenarios.json
 │   ├── medical_chat_data.jsonl
 │
-├── Seed_Creator.py
-├── datatest.py
-└── generation_script.py
+├── Medical_Seed_Creator.py
+└── Medical_Data_Creator.py
 ```
 
 ### Key Components
