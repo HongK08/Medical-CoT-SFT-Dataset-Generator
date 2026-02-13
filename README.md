@@ -1,64 +1,249 @@
-root@dd65a69d70f6:/workspace/Data# python test.py
-🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
-/opt/venv/lib/python3.12/site-packages/transformers/utils/hub.py:111: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
-  warnings.warn(
-🦥 Unsloth Zoo will now patch everything to make training faster!
-==((====))==  Unsloth 2026.2.1: Fast Gpt_Oss patching. Transformers: 4.56.2.
-   \\   /|    NVIDIA GeForce RTX 4090. Num GPUs = 1. Max memory: 23.51 GB. Platform: Linux.
-O^O/ \_/ \    Torch: 2.10.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
-\        /    Bfloat16 = TRUE. FA [Xformers = None. FA2 = False]
- "-____-"     Free license: http://github.com/unslothai/unsloth
-Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!
-Loading checkpoint shards: 100%|█████████████████████████████████████████████████████| 4/4 [00:02<00:00,  1.68it/s]
-Unsloth: PEFT set target_parameters but found no matching parameters.
-This is expected for MoE models - Unsloth handles MoE expert LoRA targeting separately.
-<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
-Knowledge cutoff: 2024-06
-Current date: 2026-02-13
+# Medical CoT Dataset Generator
 
-Reasoning: medium
+Teacher LLM-based Clinical Reasoning Data Pipeline
 
-# Valid channels: analysis, commentary, final. Channel must be included for every message.
-Calls to these tools must go to the commentary channel: 'functions'.<|end|><|start|>developer<|message|># Instructions
+---
 
-당신은 전문 의료 상담 어시스턴트입니다. 환자의 증상을 분석하고 Thought, Intent 단계를 거쳐 체계적으로 답변하십시오.<|end|><|start|>user<|message|>요즘 손이 떨리고 심장이 빨리 뛰는 느낌이 있어요. 왜 그럴까요?<|end|><|start|>assistant<|channel|>analysis<|message|>The user reports experiencing hand tremor and palpitations. A structured approach will be used: first gather basic information (Chief Complaint, Onset, Duration, Severity, Aggravating/Relieving Factors, Associated Symptoms, Medical History, Meds, Social). Then synthesize into Thought and Intent statements.
+## Overview
 
-Thought: Chief Complaint  
-Intent: chief_complaint
+This project builds a structured medical dialogue dataset using a large teacher language model.
 
-User says they have hand tremor and heart racing.
+It generates:
 
-Thought: Onset  
-Intent: onset
+* Realistic patient profiles
+* Multi-turn medical consultations
+* Expert-level clinical reasoning (Chain-of-Thought)
+* Structured diagnostic JSON outputs
 
-Symptoms started 3 weeks ago, initially intermittent, now daily.
+The final dataset is designed for:
 
-Thought: Duration  
-Intent: duration
+* Chain-of-Thought (CoT) supervised fine-tuning
+* Knowledge distillation into smaller student models
+* Clinical reasoning chatbot training
+* Structured medical QA systems
 
-Symptoms last about 10 minutes each episode, occurring several times a day.
+This repository implements a reproducible pipeline for generating high-quality medical reasoning data at scale.
 
-Thought: Severity  
-Intent: severity
+---
 
-Severity is moderate (5/10).
+## Motivation
 
-Thought: Aggravating Factors  
-Intent: aggravating_factors
+Medical reasoning requires:
 
-Stress, caffeine, nicotine, dehydration, lack of sleep.
+* Context comprehension
+* Differential diagnosis
+* Risk assessment
+* Structured treatment planning
 
-Thought: Relieving Factors  
-Intent: relieving_factors
+General LLM outputs often lack structural reliability.
+This project enforces deterministic JSON structure while preserving reasoning depth.
 
-Rest, deep breathing, meditation, hydration, caffeine reduction, avoiding stimulants.
+The goal is to create a distillation-ready dataset suitable for training compact medical assistant models (e.g., 1B–7B parameter range).
 
-Thought: Associated Symptoms  
-Intent: associated_symptoms
+---
 
-Lightheadedness, sweating, anxiety, palpitations, tremor, shortness of breath, nausea.
+## System Architecture
 
-Thought: Medical History  
-Intent: medical_history
+```
+Scenario Seed
+      ↓
+Patient Profile Generator
+      ↓
+Dialogue Generator
+      ↓
+Expert Reasoning Generator (CoT)
+      ↓
+Structured JSON Validator / Repair
+      ↓
+JSONL Dataset
+      ↓
+Student Model Distillation
+```
 
-Hypertension, anxiety disorder, migraine, GERD
+---
+
+## Project Structure
+
+```
+LLM Dataset Project/
+│
+├── Data/
+│   ├── scenarios.json
+│   ├── medical_chat_data.jsonl
+│
+├── Seed_Creator.py
+├── datatest.py
+└── generation_script.py
+```
+
+### Key Components
+
+**scenarios.json**
+Defines structured clinical seeds including symptoms, demographics, and contextual factors.
+
+**generation_script.py**
+Main pipeline that:
+
+* Loads scenario seeds
+* Calls teacher LLM via HTTP API
+* Enforces structured outputs
+* Saves successful generations to JSONL
+
+**medical_chat_data.jsonl**
+Final dataset file (one JSON object per line).
+
+---
+
+## Dataset Format
+
+Each case is stored in JSONL format:
+
+```json
+{
+  "case_id": 123,
+  "patient_profile": {...},
+  "dialogue": [...],
+  "expert_output_text": "...",
+  "expert_output_json": {...},
+  "created_at": "2026-02-07T02:39:22Z"
+}
+```
+
+### Field Description
+
+* `case_id` — Sequential unique identifier
+* `patient_profile` — Structured patient metadata
+* `dialogue` — Multi-turn patient–doctor conversation
+* `expert_output_text` — Natural language clinical reasoning
+* `expert_output_json` — Structured diagnosis and treatment plan
+* `created_at` — UTC timestamp
+
+---
+
+## Generation Pipeline
+
+### 1. Scenario Loading
+
+Seeds are loaded from:
+
+```
+Data/scenarios.json
+```
+
+Each seed defines:
+
+* Symptoms
+* Age / Gender
+* Risk factors
+* Clinical background
+
+---
+
+### 2. Teacher Model Inference
+
+The teacher model is accessed via HTTP API:
+
+```bash
+curl -s http://127.0.0.1:22134/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model":"gpt-oss:120b",
+    "prompt":"...",
+    "stream":false
+  }'
+```
+
+Generation stages include:
+
+1. Patient profile creation
+2. Dialogue simulation
+3. Expert-level reasoning generation
+4. Structured JSON validation and repair
+
+---
+
+### 3. Resume-Safe Saving
+
+* Existing scenario keys are tracked
+* Duplicate cases are skipped
+* `case_id` increments only on successful generation
+* Output appended to `medical_chat_data.jsonl`
+
+---
+
+## Configuration
+
+Example configurable parameters:
+
+```python
+MODEL = "gpt-oss:120b"
+
+PROFILE_TEMP = 0.70
+DIALOGUE_TEMP = 0.55
+REPAIR_TEMP = 0.30
+
+TIMEOUT = 600
+RETRIES = 3
+AUTOSAVE_EVERY = 10
+```
+
+Adjustable for:
+
+* Creativity vs stability
+* JSON strictness
+* Runtime reliability
+
+---
+
+## Running
+
+### 1. Start LLM Server
+
+Example (local):
+
+```bash
+ollama run gpt-oss:120b
+```
+
+Or run your custom LLM API server.
+
+---
+
+### 2. Execute Generator
+
+```bash
+python generation_script.py
+```
+
+Monitor progress:
+
+```bash
+tail -f Data/medical_chat_data.jsonl
+```
+
+---
+
+## Design Principles
+
+* Structured reliability over free-form output
+* Chain-of-thought preservation
+* Resume-safe large-scale generation
+* Distillation-ready format
+* Clinical plausibility focus
+
+---
+
+## Future Work
+
+* Automatic hallucination detection
+* ICD-10 structured tagging
+* Confidence estimation
+* Multi-specialty dataset balancing
+* Automated dataset evaluation metrics
+* Student model fine-tuning experiments
+
+---
+
+## License
+
+Specify license here.
