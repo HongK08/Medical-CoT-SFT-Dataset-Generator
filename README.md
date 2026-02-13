@@ -1,4 +1,4 @@
-# Medical CoT Dataset Generator
+# Medical CoT SFT Dataset Generator
 
 Teacher LLM-based Clinical Reasoning Data Pipeline
 
@@ -244,5 +244,4 @@ tail -f Data/medical_chat_data.jsonl
 ---
 
 ## License
-
-Specify license here.
+Not Yet
