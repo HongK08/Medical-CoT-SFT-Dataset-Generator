@@ -244,4 +244,6 @@ tail -f Data/medical_chat_data.jsonl
 ---
 
 ## License
-Not Yet
+Apache License 2.0
+
+"This data was generated using OpenAI's GPT-OSS 120B model."
